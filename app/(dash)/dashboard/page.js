@@ -2,6 +2,8 @@
 import { useEffect, useState } from 'react';
 import axios from 'axios';
 
+const apiUrl = process.env.NEXT_PUBLIC_API_URL;
+
 const PROFILE_KEY = 'ts_profile_v1';
 
 function capitalizePreserveRest(word) {
@@ -62,8 +64,6 @@ export default function Dashboard() {
     days: DEFAULT_DAYS,
   });
 
-  // Load user profile and daily hours on page load
-  // but reset week begin/end and daily dates to defaults
   useEffect(() => {
     try {
       const saved = localStorage.getItem(PROFILE_KEY);
@@ -74,16 +74,15 @@ export default function Dashboard() {
           designation: p.designation ?? '',
           email_primary: p.email_primary ?? '',
           email_secondary: p.email_secondary ?? '',
-          week_begin: '', // clear on reload
-          week_end: '',   // clear on reload
-          days: DEFAULT_DAYS,  // reset days on reload (empty dates, 8 hours)
+          week_begin: '',
+          week_end: '',
+          days: DEFAULT_DAYS,
         });
       }
     } catch {}
     setHydrated(true);
   }, []);
 
-  // Save user details and daily hours on every change AFTER hydration
   useEffect(() => {
     if (!hydrated) return;
     try {
@@ -93,7 +92,6 @@ export default function Dashboard() {
         email_primary: form.email_primary,
         email_secondary: form.email_secondary,
         days: form.days,
-        // week_begin and week_end intentionally NOT saved
       };
       localStorage.setItem(PROFILE_KEY, JSON.stringify(toSave));
     } catch {}
@@ -147,7 +145,11 @@ export default function Dashboard() {
     setLoading(true);
     try {
       const payload = { ...form };
-      const res = await axios.post('/api/exports/weekly/download', payload, { responseType: 'blob' });
+      const res = await axios.post(
+        `${apiUrl}/exports/weekly/download`,
+        payload,
+        { responseType: 'blob' }
+      );
 
       const endDate = new Date(form.week_end);
       const filename = buildFilename(form.employee_name, endDate);
