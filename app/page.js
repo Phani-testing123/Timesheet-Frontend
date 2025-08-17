@@ -1,0 +1,1 @@
+import Link from 'next/link'; export default function Home(){return <main style={{padding:24}}><Link href='/dashboard'>Go to Dashboard</Link></main>; }

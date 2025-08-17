@@ -1,0 +1,1 @@
+{"kind":"FETCH","data":{"headers":{"content-length":"11","content-type":"application/json","date":"Fri, 15 Aug 2025 20:35:08 GMT","server":"uvicorn"},"body":"eyJvayI6dHJ1ZX0=","status":200,"url":"http://127.0.0.1:8000/healthz"},"revalidate":31536000,"tags":[]}
