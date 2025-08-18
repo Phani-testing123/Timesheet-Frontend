@@ -1,4 +1,3 @@
 {
-  "/(dash)/dashboard/page": "app/(dash)/dashboard/page.js",
-  "/api/exports/weekly/download/route": "app/api/exports/weekly/download/route.js"
+  "/(dash)/dashboard/page": "app/(dash)/dashboard/page.js"
 }

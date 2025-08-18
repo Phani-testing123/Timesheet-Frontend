@@ -3,16 +3,37 @@ import { useEffect, useState } from 'react';
 import axios from 'axios';
 
 const apiUrl = process.env.NEXT_PUBLIC_API_URL;
+console.log('API URL:', apiUrl);
 
 const PROFILE_KEY = 'ts_profile_v1';
 
+// -------- date helpers (local, no UTC shift) --------
+function parseYMDLocal(s) {
+  // s = "YYYY-MM-DD"
+  if (!s) return null;
+  const [y, m, d] = s.split('-').map(Number);
+  return new Date(y, m - 1, d); // local midnight
+}
+const dateToYMD = (d) => {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+};
+function addDays(d, n) {
+  const x = new Date(d);
+  x.setDate(x.getDate() + n);
+  return x;
+}
+
+// -------- filename helpers --------
 function capitalizePreserveRest(word) {
   if (!word) return word;
   return word.charAt(0).toUpperCase() + word.slice(1);
 }
-
-function buildFilename(employeeName, weekEndDate) {
-  let sanitized = employeeName.trim()
+function buildFilename(employeeName, weekEndStr) {
+  let sanitized = employeeName
+    .trim()
     .replace(/\s+/g, '_')
     .replace(/[^\w]/g, '')
     .replace(/_+/g, '_');
@@ -22,24 +43,13 @@ function buildFilename(employeeName, weekEndDate) {
     .map(capitalizePreserveRest)
     .join('_');
 
+  // parse as LOCAL date to avoid timezone off-by-one
+  const weekEndDate = parseYMDLocal(weekEndStr);
+  const mm = String(weekEndDate.getMonth() + 1).padStart(2, '0');
+  const dd = String(weekEndDate.getDate()).padStart(2, '0');
+  const yyyy = weekEndDate.getFullYear();
   const suffix = 'Timesheet_Week_Ending';
-
-  const dateStr = `${String(weekEndDate.getMonth() + 1).padStart(2, '0')}${String(weekEndDate.getDate()).padStart(2, '0')}${weekEndDate.getFullYear()}`;
-
-  return `${sanitized}_${suffix}_${dateStr}.xlsx`;
-}
-
-const dateToYMD = (d) => {
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  return `${y}-${m}-${day}`;
-};
-
-function addDays(d, n) {
-  const x = new Date(d);
-  x.setDate(x.getDate() + n);
-  return x;
+  return `${sanitized}_${suffix}_${mm}${dd}${yyyy}.xlsx`;
 }
 
 const DEFAULT_DAYS = [
@@ -64,12 +74,13 @@ export default function Dashboard() {
     days: DEFAULT_DAYS,
   });
 
+  // hydrate from localStorage
   useEffect(() => {
     try {
       const saved = localStorage.getItem(PROFILE_KEY);
       if (saved) {
         const p = JSON.parse(saved);
-        setForm({
+        setForm((f) => ({
           employee_name: p.employee_name ?? '',
           designation: p.designation ?? '',
           email_primary: p.email_primary ?? '',
@@ -77,12 +88,13 @@ export default function Dashboard() {
           week_begin: '',
           week_end: '',
           days: DEFAULT_DAYS,
-        });
+        }));
       }
     } catch {}
     setHydrated(true);
   }, []);
 
+  // save profile fields (not week/days)
   useEffect(() => {
     if (!hydrated) return;
     try {
@@ -91,15 +103,15 @@ export default function Dashboard() {
         designation: form.designation,
         email_primary: form.email_primary,
         email_secondary: form.email_secondary,
-        days: form.days,
       };
       localStorage.setItem(PROFILE_KEY, JSON.stringify(toSave));
     } catch {}
-  }, [form, hydrated]);
+  }, [form.employee_name, form.designation, form.email_primary, form.email_secondary, hydrated]);
 
+  // autofill by begin
   const autofillFromBegin = (beginStr) => {
     if (!beginStr) return;
-    const begin = new Date(beginStr);
+    const begin = parseYMDLocal(beginStr);
     const newDays = [...Array(5)].map((_, i) => ({
       work_date: dateToYMD(addDays(begin, i)),
       hours: form.days[i]?.hours ?? 8,
@@ -112,9 +124,10 @@ export default function Dashboard() {
     }));
   };
 
+  // autofill by end
   const autofillFromEnd = (endStr) => {
     if (!endStr) return;
-    const end = new Date(endStr);
+    const end = parseYMDLocal(endStr);
     const start = addDays(end, -4);
     const newDays = [...Array(5)].map((_, i) => ({
       work_date: dateToYMD(addDays(start, i)),
@@ -144,15 +157,16 @@ export default function Dashboard() {
 
     setLoading(true);
     try {
-      const payload = { ...form };
+      const payload = { ...form }; // YYYY-MM-DD strings
+      console.log('Payload going to backend:', payload);
+
       const res = await axios.post(
         `${apiUrl}/exports/weekly/download`,
         payload,
         { responseType: 'blob' }
       );
 
-      const endDate = new Date(form.week_end);
-      const filename = buildFilename(form.employee_name, endDate);
+      const filename = buildFilename(form.employee_name, form.week_end);
 
       const blob = new Blob([res.data], {
         type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
@@ -167,7 +181,18 @@ export default function Dashboard() {
       window.URL.revokeObjectURL(url);
     } catch (e) {
       console.error(e);
-      alert('Export failed: ' + (e?.response?.data?.detail || e.message));
+      try {
+        if (e?.response?.data instanceof Blob) {
+          const txt = await e.response.data.text();
+          alert('Export failed:\n' + txt);
+        } else if (e?.response?.data?.detail) {
+          alert('Export failed: ' + e.response.data.detail);
+        } else {
+          alert('Export failed: ' + e.message);
+        }
+      } catch {
+        alert('Export failed: ' + e.message);
+      }
     } finally {
       setLoading(false);
     }
