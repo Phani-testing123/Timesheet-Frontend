@@ -221,9 +221,9 @@ export default function Dashboard() {
                 <div key={field} style={{ flex: '1 1 300px', display: 'flex', flexDirection: 'column' }}>
                   <label htmlFor={field} style={{ marginBottom: 6, fontWeight: 500, color: '#333' }}>
                     {field === 'rbi_email'
-                      ? 'RBI Email *'
+                      ? 'RBI Email'
                       : field === 'tiu_email'
-                        ? 'TIU Email *'
+                        ? 'TIU Email'
                         : field.replace(/_/g, ' ').replace(/\b\w/g, (l) => l.toUpperCase())}
                   </label>
                   <input
