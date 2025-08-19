@@ -67,8 +67,8 @@ export default function Dashboard() {
   const [form, setForm] = useState({
     employee_name: '',
     designation: '',
-    email_primary: '',
-    email_secondary: '',
+    rbi_email: '',
+    tiu_email: '',
     week_begin: '',
     week_end: '',
     days: DEFAULT_DAYS,
@@ -80,11 +80,11 @@ export default function Dashboard() {
       const saved = localStorage.getItem(PROFILE_KEY);
       if (saved) {
         const p = JSON.parse(saved);
-        setForm((f) => ({
-          employee_name: p.employee_name ?? '',
-          designation: p.designation ?? '',
-          email_primary: p.email_primary ?? '',
-          email_secondary: p.email_secondary ?? '',
+        setForm(() => ({
+          employee_name: p.employee_name || '',
+          designation: p.designation || '',
+          rbi_email: p.rbi_email || '',
+          tiu_email: p.tiu_email || '',
           week_begin: '',
           week_end: '',
           days: DEFAULT_DAYS,
@@ -101,12 +101,12 @@ export default function Dashboard() {
       const toSave = {
         employee_name: form.employee_name,
         designation: form.designation,
-        email_primary: form.email_primary,
-        email_secondary: form.email_secondary,
+        rbi_email: form.rbi_email,
+        tiu_email: form.tiu_email,
       };
       localStorage.setItem(PROFILE_KEY, JSON.stringify(toSave));
     } catch {}
-  }, [form.employee_name, form.designation, form.email_primary, form.email_secondary, hydrated]);
+  }, [form.employee_name, form.designation, form.rbi_email, form.tiu_email, hydrated]);
 
   // autofill by begin
   const autofillFromBegin = (beginStr) => {
@@ -142,8 +142,8 @@ export default function Dashboard() {
   };
 
   const submit = async () => {
-    if (!form.employee_name || !form.designation || !form.email_primary) {
-      alert('Please fill Employee Name, Role, and Primary Email.');
+    if (!form.employee_name || !form.designation || !form.rbi_email || !form.tiu_email) {
+      alert('Please fill Employee Name, Role, RBI Email, and TIU Email');
       return;
     }
     if (!form.week_begin || !form.week_end) {
@@ -217,16 +217,27 @@ export default function Dashboard() {
           <section>
             <h2 style={{ fontSize: 18, fontWeight: '600', marginBottom: 10 }}>Employee Details</h2>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 20 }}>
-              {['employee_name', 'designation', 'email_primary', 'email_secondary'].map((field) => (
+              {['employee_name', 'designation', 'rbi_email', 'tiu_email'].map((field) => (
                 <div key={field} style={{ flex: '1 1 300px', display: 'flex', flexDirection: 'column' }}>
                   <label htmlFor={field} style={{ marginBottom: 6, fontWeight: 500, color: '#333' }}>
-                    {field.replace(/_/g, ' ').replace(/\b\w/g, (l) => l.toUpperCase())}
+                    {field === 'rbi_email'
+                      ? 'RBI Email *'
+                      : field === 'tiu_email'
+                        ? 'TIU Email *'
+                        : field.replace(/_/g, ' ').replace(/\b\w/g, (l) => l.toUpperCase())}
                   </label>
                   <input
                     id={field}
                     type={field.includes('email') ? 'email' : 'text'}
-                    value={form[field]}
+                    value={form[field] ?? ''}
                     onChange={(e) => setForm({ ...form, [field]: e.target.value })}
+                    placeholder={
+                      field === 'rbi_email'
+                        ? 'e.g. john.doe@rbi.com'
+                        : field === 'tiu_email'
+                          ? 'e.g. john.backup@tiuconsulting.com'
+                          : ''
+                    }
                     style={{
                       padding: '10px 12px',
                       borderRadius: 4,
